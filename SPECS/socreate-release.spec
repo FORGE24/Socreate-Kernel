@@ -13,7 +13,7 @@
 %define release_quarter_lc q2
 %define releasever %{release_year}%{release_half}%{release_quarter}
 
-%define socreate_rel 6
+%define socreate_rel 7
 %define rpm_license BSD-3-Clause
 %define dist .soc%{release_year}%{release_half_lc}%{release_quarter_lc}
 %define home_url https://socreate.xyz/
@@ -165,12 +165,12 @@ EOF
 
 # repository definitions (owned by socreate-repos subpackage)
 install -d -m 0755 %{buildroot}%{_sysconfdir}/yum.repos.d
-sed 's/@FEDORA_VERSION@/%{fedora_base}/g' %{SOURCE1} > %{buildroot}%{_sysconfdir}/yum.repos.d/socreate.repo
-sed 's/@FEDORA_VERSION@/%{fedora_base}/g' %{SOURCE2} > %{buildroot}%{_sysconfdir}/yum.repos.d/socreate-updates.repo
+sed 's/@FEDORA_VERSION@/%{fedora_base}/g' %{_sourcedir}/socreate.repo > %{buildroot}%{_sysconfdir}/yum.repos.d/socreate.repo
+sed 's/@FEDORA_VERSION@/%{fedora_base}/g' %{_sourcedir}/socreate-updates.repo > %{buildroot}%{_sysconfdir}/yum.repos.d/socreate-updates.repo
 
 # license (main package)
 install -d -m 0755 %{buildroot}%{_datadir}/licenses/socreate-release
-install -m 0644 %{SOURCE0} %{buildroot}%{_datadir}/licenses/socreate-release/LICENSE
+install -m 0644 %{_sourcedir}/LICENSE %{buildroot}%{_datadir}/licenses/socreate-release/LICENSE
 
 %files
 %config(noreplace) %{_sysconfdir}/os-release
@@ -204,20 +204,23 @@ done
 # Do not re-enable legacy fedora repos on uninstall.
 
 %changelog
-* Fri Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-6
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-7
+- Fix CI build: use %%{_sourcedir} and correct changelog weekday
+
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-6
 - Fix dnf5 config-manager disable syntax in %post
 
-* Fri Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-5
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-5
 - Disable legacy fedora repos; fix updates source tree URL on TUNA
 
-* Fri Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-4
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-4
 - Add Socreate kernel version fields and fix RPM dist macros escaping
 
-* Fri Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-3
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-3
 - Fix fedora-release Provides version for dbus compatibility
 
-* Fri Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-2
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-2
 - Point repos to Tsinghua TUNA Fedora mirror (temporary)
 
-* Fri Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-1
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-1
 - Adopt YYHxQy version scheme (e.g. 26H1Q2)
