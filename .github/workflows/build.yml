@@ -55,10 +55,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: socreate-release-rpms
-          path: |
-            RPMS/noarch/socreate-release-*.rpm
-            RPMS/noarch/socreate-repos-*.rpm
-            SRPMS/socreate-release-*.src.rpm
+          path: RPMS/noarch/
+          if-no-files-found: error
+
+      - name: Upload socreate-release SRPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: socreate-release-srpm
+          path: SRPMS/socreate-release-*.src.rpm
           if-no-files-found: error
 
   kernel:
@@ -86,6 +90,9 @@ jobs:
         with:
           name: socreate-release-rpms
           path: RPMS/noarch/
+
+      - name: Verify socreate-release RPMs
+        run: ls -la RPMS/noarch/
 
       - name: Free disk space
         run: |
@@ -123,17 +130,26 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: socreate-release-rpms
-          path: dist/
+          path: dist/rpms/noarch/
+
+      - name: Download socreate-release SRPM
+        uses: actions/download-artifact@v4
+        with:
+          name: socreate-release-srpm
+          path: dist/srpms/
 
       - name: Download kernel RPMs
         if: needs.kernel.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: kernel-rpms
-          path: dist/
+          path: dist/rpms/x86_64/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/**
+          files: |
+            dist/rpms/noarch/*.rpm
+            dist/rpms/x86_64/*.rpm
+            dist/srpms/*.src.rpm
           generate_release_notes: true

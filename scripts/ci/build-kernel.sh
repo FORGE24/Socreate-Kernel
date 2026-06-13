@@ -13,7 +13,16 @@ KERNEL_SRPM_URL="${KERNEL_SRPM_URL:-https://dl.fedoraproject.org/pub/fedora/linu
 RPMBUILD=(rpmbuild --define "_topdir $TOPDIR")
 
 echo "==> Install socreate-release (provides %dist .soc26h1q2)"
-rpm -Uvh RPMS/noarch/socreate-release-*.noarch.rpm RPMS/noarch/socreate-repos-*.noarch.rpm
+mkdir -p RPMS/noarch
+shopt -s nullglob
+release_rpms=(RPMS/noarch/socreate-release-*.noarch.rpm)
+repos_rpms=(RPMS/noarch/socreate-repos-*.noarch.rpm)
+if (( ${#release_rpms[@]} == 0 || ${#repos_rpms[@]} == 0 )); then
+    echo "RPMs not found under RPMS/noarch/, searching workspace..."
+    find . -name 'socreate-release-*.noarch.rpm' -o -name 'socreate-repos-*.noarch.rpm'
+    exit 1
+fi
+rpm -Uvh "${release_rpms[@]}" "${repos_rpms[@]}"
 rpm --eval '%{dist}'
 
 echo "==> Download kernel SRPM: ${KERNEL_SRPM_URL}"
