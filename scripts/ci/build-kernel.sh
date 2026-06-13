@@ -8,15 +8,38 @@ mkdir -p "$TOPDIR"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 
 FEDORA_VERSION="${FEDORA_VERSION:-44}"
 KERNEL_NEVR="${KERNEL_NEVR:-7.0.12-201.fc44}"
-JOBS="${JOBS:-$(nproc)}"
 SOCREATE_DIST="${SOCREATE_DIST:-.soc26h1q2}"
-KERNEL_BASEONLY="${KERNEL_BASEONLY:-1}"
 KERNEL_SRPM_URL="${KERNEL_SRPM_URL:-https://dl.fedoraproject.org/pub/fedora/linux/updates/${FEDORA_VERSION}/Everything/source/tree/Packages/k/kernel-${KERNEL_NEVR}.src.rpm}"
+KERNEL_SRPM="$TOPDIR/SOURCES/kernel-${KERNEL_NEVR}.src.rpm"
+
+# Use all CPUs, but cap by available RAM (~2 GiB per compile job).
+if [[ -z "${JOBS:-}" ]]; then
+    JOBS="$(nproc)"
+    if [[ -r /proc/meminfo ]]; then
+        mem_jobs=$(($(grep -E '^MemAvailable:' /proc/meminfo | awk '{print $2}') / 2097152))
+        if (( mem_jobs >= 1 && JOBS > mem_jobs )); then
+            JOBS=$mem_jobs
+        fi
+    fi
+fi
+
 RPMBUILD=(rpmbuild --define "_topdir $TOPDIR" --define "dist ${SOCREATE_DIST}")
+# Fast CI path: stock base kernel only, skip debug/doc/headers/debuginfo/extras.
+KERNEL_BUILD_FLAGS=(
+    --define "debugbuildsenabled 0"
+    --define "_smp_mflags -j${JOBS}"
+    --with baseonly
+    --without doc
+    --without headers
+    --without debuginfo
+    --without configchecks
+    --without kabidwchk
+    --without ynl
+)
 
 echo "==> Kernel rebrand dist tag: ${SOCREATE_DIST}"
-echo "==> Parallel make jobs: ${JOBS}"
-echo "==> Base-only build (skip debug variants): ${KERNEL_BASEONLY}"
+echo "==> Parallel jobs: ${JOBS}"
+echo "==> Build profile: baseonly (stock kernel only, no debug/doc/headers/debuginfo)"
 
 if [[ "${INSTALL_SOCREATE_RELEASE:-0}" == "1" ]]; then
     echo "==> Installing socreate-release RPMs (local mode)"
@@ -33,11 +56,15 @@ if [[ "${INSTALL_SOCREATE_RELEASE:-0}" == "1" ]]; then
     RPMBUILD=(rpmbuild --define "_topdir $TOPDIR" --define "dist ${SOCREATE_DIST}")
 fi
 
-echo "==> Download kernel SRPM: ${KERNEL_SRPM_URL}"
-curl -fL --retry 3 --retry-delay 5 -o "$TOPDIR/SOURCES/kernel-${KERNEL_NEVR}.src.rpm" "${KERNEL_SRPM_URL}"
+if [[ ! -f "$KERNEL_SRPM" ]]; then
+    echo "==> Download kernel SRPM: ${KERNEL_SRPM_URL}"
+    curl -fL --retry 3 --retry-delay 5 -o "$KERNEL_SRPM" "${KERNEL_SRPM_URL}"
+else
+    echo "==> Reuse cached kernel SRPM: ${KERNEL_SRPM}"
+fi
 
 echo "==> Install kernel SRPM into rpmbuild tree"
-rpm -Uvh --define "_topdir $TOPDIR" "$TOPDIR/SOURCES/kernel-${KERNEL_NEVR}.src.rpm"
+rpm -Uvh --define "_topdir $TOPDIR" "$KERNEL_SRPM"
 
 if [[ ! -f "$TOPDIR/SPECS/kernel.spec" ]]; then
     echo "kernel.spec not found under $TOPDIR/SPECS after SRPM install"
@@ -45,21 +72,21 @@ if [[ ! -f "$TOPDIR/SPECS/kernel.spec" ]]; then
     exit 1
 fi
 
-echo "==> Install build dependencies"
-dnf builddep -y "$TOPDIR/SPECS/kernel.spec"
+echo "==> Install build dependencies (minimal profile)"
+dnf builddep -y \
+    --define "_topdir $TOPDIR" \
+    --define "debugbuildsenabled 0" \
+    --define "with_baseonly 1" \
+    --define "with_debuginfo 0" \
+    --define "with_doc 0" \
+    --define "with_headers 0" \
+    "$TOPDIR/SPECS/kernel.spec"
 
-echo "==> Build kernel (debug variants disabled)"
-RPMBUILD_ARGS=(
-    --define "debugbuildsenabled 0"
-    --define "_smp_mflags -j${JOBS}"
-)
-if [[ "${KERNEL_BASEONLY}" == "1" ]]; then
-    RPMBUILD_ARGS+=(--with baseonly)
-fi
-
+echo "==> Build kernel"
 "${RPMBUILD[@]}" -bb \
-    "${RPMBUILD_ARGS[@]}" \
+    "${KERNEL_BUILD_FLAGS[@]}" \
     SPECS/kernel.spec
 
 echo "==> Kernel RPMs:"
-ls -lh RPMS/x86_64/kernel-*soc*.rpm 2>/dev/null || ls -lh RPMS/x86_64/kernel-*.rpm
+ls -lh RPMS/x86_64/kernel-{,core,modules,modules-core}-*.rpm 2>/dev/null \
+    || ls -lh RPMS/x86_64/kernel-*.rpm
