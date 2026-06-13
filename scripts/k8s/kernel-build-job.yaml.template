@@ -1,0 +1,58 @@
+# Ephemeral kernel build Job — 16 CPU / 32Gi RAM
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: socreate-kernel-build
+  namespace: socreate-build
+  labels:
+    app: socreate-kernel-build
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: socreate-kernel-build
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: builder
+          image: fedora:44
+          resources:
+            requests:
+              cpu: "16"
+              memory: 32Gi
+            limits:
+              cpu: "16"
+              memory: 32Gi
+          env:
+            - name: FEDORA_VERSION
+              value: "${FEDORA_VERSION}"
+            - name: KERNEL_NEVR
+              value: "${KERNEL_NEVR}"
+            - name: SOCREATE_DIST
+              value: "${SOCREATE_DIST}"
+            - name: JOBS
+              value: "${JOBS}"
+            - name: KERNEL_BASEONLY
+              value: "${KERNEL_BASEONLY}"
+            - name: GIT_REPO
+              value: "${GIT_REPO}"
+            - name: GIT_REF
+              value: "${GIT_REF}"
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              dnf install -y rpm-build rpmdevtools curl git dnf-plugins-core
+              dnf clean all
+              rm -rf /var/cache/dnf /tmp/* /var/log/*
+
+              workdir=/build
+              git clone --depth 1 --branch "${GIT_REF}" "${GIT_REPO}" "${workdir}"
+              cd "${workdir}"
+              chmod +x scripts/ci/build-kernel.sh
+              ./scripts/ci/build-kernel.sh
+
+              echo "==> Build complete"
+              ls -lh RPMS/x86_64/ || true

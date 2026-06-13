@@ -16,10 +16,14 @@ on:
         description: 'Also build kernel RPMs (slow, ~1-2h)'
         type: boolean
         default: true
+      use_k8s:
+        description: 'Build kernel on temporary K8s cluster (16c/32G, needs KUBECONFIG secret)'
+        type: boolean
+        default: false
       kernel_jobs:
-        description: 'Parallel make jobs for kernel'
+        description: 'Parallel make jobs (-jN); use 16 on K8s, 4 on GitHub-hosted'
         type: string
-        default: '4'
+        default: '16'
       fedora_version:
         description: 'Fedora base version'
         type: string
@@ -66,6 +70,49 @@ jobs:
           path: SRPMS/socreate-release-*.src.rpm
           if-no-files-found: error
 
+  kernel-k8s:
+    name: kernel-rebrand-k8s
+    needs: socreate-release
+    if: >-
+      needs.socreate-release.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.build_kernel)
+      ) &&
+      (
+        github.event_name == 'workflow_dispatch' && inputs.use_k8s ||
+        vars.KERNEL_USE_K8S == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Build kernel on K8s (16 CPU / 32Gi)
+        env:
+          KUBECONFIG: /tmp/kubeconfig
+          GIT_REF: ${{ github.ref_name }}
+          FEDORA_VERSION: ${{ env.FEDORA_VERSION }}
+          KERNEL_NEVR: ${{ env.KERNEL_NEVR }}
+          SOCREATE_DIST: ${{ env.SOCREATE_DIST }}
+          JOBS: ${{ github.event.inputs.kernel_jobs || '16' }}
+          KERNEL_BASEONLY: '1'
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > /tmp/kubeconfig
+          chmod +x scripts/ci/k8s-kernel-build.sh
+          ./scripts/ci/k8s-kernel-build.sh
+
+      - name: Upload kernel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-rpms
+          path: RPMS/x86_64/
+          if-no-files-found: error
+
   kernel:
     name: kernel-rebrand
     needs: socreate-release
@@ -74,8 +121,12 @@ jobs:
       (
         github.event_name == 'push' ||
         (github.event_name == 'workflow_dispatch' && inputs.build_kernel)
+      ) &&
+      !(
+        github.event_name == 'workflow_dispatch' && inputs.use_k8s ||
+        vars.KERNEL_USE_K8S == 'true'
       )
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.KERNEL_USE_SELF_HOSTED == 'true' && fromJSON('["self-hosted","linux","x64","socreate-k8s","16c-32g","kernel"]') || 'ubuntu-latest' }}
     timeout-minutes: 180
     container:
       image: fedora:44
@@ -91,13 +142,15 @@ jobs:
           dnf clean all
           rm -rf /var/cache/dnf /tmp/* /var/log/*
           df -h /
+          echo "CPUs: $(nproc)"
 
       - name: Build kernel
         env:
-          JOBS: ${{ github.event.inputs.kernel_jobs || '4' }}
+          JOBS: ${{ github.event.inputs.kernel_jobs || (vars.KERNEL_USE_SELF_HOSTED == 'true' && '16') || '4' }}
           FEDORA_VERSION: ${{ env.FEDORA_VERSION }}
           KERNEL_NEVR: ${{ env.KERNEL_NEVR }}
           SOCREATE_DIST: ${{ env.SOCREATE_DIST }}
+          KERNEL_BASEONLY: '1'
         run: |
           chmod +x scripts/ci/build-kernel.sh
           ./scripts/ci/build-kernel.sh
@@ -111,10 +164,11 @@ jobs:
 
   release:
     name: GitHub Release
-    needs: [socreate-release, kernel]
+    needs: [socreate-release, kernel, kernel-k8s]
     if: >-
       startsWith(github.ref, 'refs/tags/v') &&
-      (needs.kernel.result == 'success' || needs.kernel.result == 'skipped')
+      (needs.kernel.result == 'success' || needs.kernel.result == 'skipped') &&
+      (needs.kernel-k8s.result == 'success' || needs.kernel-k8s.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -132,7 +186,7 @@ jobs:
           path: dist/srpms/
 
       - name: Download kernel RPMs
-        if: needs.kernel.result == 'success'
+        if: needs.kernel.result == 'success' || needs.kernel-k8s.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: kernel-rpms
