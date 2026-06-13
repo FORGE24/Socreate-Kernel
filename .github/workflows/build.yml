@@ -15,7 +15,7 @@ on:
       build_kernel:
         description: 'Also build kernel RPMs (slow, ~1-2h)'
         type: boolean
-        default: false
+        default: true
       kernel_jobs:
         description: 'Parallel make jobs for kernel'
         type: string
@@ -64,7 +64,12 @@ jobs:
   kernel:
     name: kernel-rebrand
     needs: socreate-release
-    if: github.event_name == 'workflow_dispatch' && inputs.build_kernel
+    if: >-
+      needs.socreate-release.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.build_kernel)
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 180
     container:
@@ -85,7 +90,7 @@ jobs:
       - name: Free disk space
         run: |
           dnf clean all
-          rm -rf /var/cache/dnf /tmp/*
+          rm -rf /var/cache/dnf /tmp/* /var/log/*
           df -h /
 
       - name: Build kernel
