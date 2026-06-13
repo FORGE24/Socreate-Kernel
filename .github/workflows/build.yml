@@ -32,6 +32,7 @@ on:
 env:
   FEDORA_VERSION: ${{ github.event.inputs.fedora_version || '44' }}
   KERNEL_NEVR: ${{ github.event.inputs.kernel_nevr || '7.0.12-201.fc44' }}
+  SOCREATE_DIST: .soc26h1q2
 
 jobs:
   socreate-release:
@@ -85,15 +86,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download socreate-release RPMs
-        uses: actions/download-artifact@v4
-        with:
-          name: socreate-release-rpms
-          path: RPMS/noarch/
-
-      - name: Verify socreate-release RPMs
-        run: ls -la RPMS/noarch/
-
       - name: Free disk space
         run: |
           dnf clean all
@@ -105,6 +97,7 @@ jobs:
           JOBS: ${{ github.event.inputs.kernel_jobs || '4' }}
           FEDORA_VERSION: ${{ env.FEDORA_VERSION }}
           KERNEL_NEVR: ${{ env.KERNEL_NEVR }}
+          SOCREATE_DIST: ${{ env.SOCREATE_DIST }}
         run: |
           chmod +x scripts/ci/build-kernel.sh
           ./scripts/ci/build-kernel.sh
