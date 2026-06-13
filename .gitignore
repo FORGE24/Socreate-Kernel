@@ -1,0 +1,37 @@
+BUILD/
+BUILDROOT/
+RPMS/
+SRPMS/
+*.log
+*.src.rpm
+linux-*.tar.*
+kernel-6.*
+kernel-7.*
+
+# kernel SRPM extracts many config files into SOURCES/
+SOURCES/linux-*.tar.*
+SOURCES/kernel-*.config
+SOURCES/kernel.changelog
+SOURCES/*.patch
+SOURCES/*.yaml
+SOURCES/*.yaml.*
+SOURCES/check-kabi
+SOURCES/filtermods.py
+SOURCES/process_configs.sh
+SOURCES/generate_all_configs.sh
+SOURCES/*.x509
+SOURCES/*.cer
+SOURCES/*.der
+SOURCES/*.crt
+SOURCES/*.template
+SOURCES/*.logrotate
+SOURCES/*.conf
+SOURCES/flavors
+SOURCES/gating.yaml
+SOURCES/Contributors
+SOURCES/mod-sign.*
+
+# keep socreate release sources
+!SOURCES/LICENSE
+!SOURCES/socreate.repo
+!SOURCES/socreate-updates.repo

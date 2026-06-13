@@ -1,0 +1,47 @@
+# Temporary: Fedora updates via Tsinghua TUNA mirror until Socreate repos are ready.
+[socreate-updates]
+name=Socreate OS @FEDORA_VERSION@ - $basearch - Updates
+baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora/updates/@FEDORA_VERSION@/Everything/$basearch/
+#metalink=https://mirrors.fedoraproject.org/metalink?repo=updates-released-f@FEDORA_VERSION@&arch=$basearch
+enabled=1
+countme=1
+repo_gpgcheck=0
+type=rpm
+gpgcheck=1
+metadata_expire=6h
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-@FEDORA_VERSION@-$basearch
+skip_if_unavailable=False
+
+[socreate-updates-debuginfo]
+name=Socreate OS @FEDORA_VERSION@ - $basearch - Updates - Debug
+baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora/updates/@FEDORA_VERSION@/Everything/$basearch/debug/
+enabled=0
+repo_gpgcheck=0
+type=rpm
+gpgcheck=1
+metadata_expire=6h
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-@FEDORA_VERSION@-$basearch
+skip_if_unavailable=False
+
+[socreate-updates-source]
+name=Socreate OS @FEDORA_VERSION@ - Updates Source
+baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora/updates/@FEDORA_VERSION@/Everything/source/tree/
+enabled=0
+repo_gpgcheck=0
+type=rpm
+gpgcheck=1
+metadata_expire=6h
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-@FEDORA_VERSION@-$basearch
+skip_if_unavailable=False
+
+[socreate-updates-testing]
+name=Socreate OS @FEDORA_VERSION@ - $basearch - Updates Testing
+baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora/updates/testing/@FEDORA_VERSION@/Everything/$basearch/
+enabled=0
+countme=1
+metadata_expire=7d
+repo_gpgcheck=0
+type=rpm
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-@FEDORA_VERSION@-$basearch
+skip_if_unavailable=False
