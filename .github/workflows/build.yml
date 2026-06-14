@@ -39,17 +39,25 @@ env:
   SOCREATE_DIST: .soc26h1q2
 
 jobs:
-  socreate-release:
+  socreate-core:
     name: socreate-core
     runs-on: ubuntu-latest
     container:
       image: fedora:44
     steps:
       - name: Install build tools
-        run: dnf install -y rpm-build rpmdevtools curl git
+        run: dnf install -y rpm-build rpmdevtools curl git dnf-plugins-core
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Socreate build dependencies
+        run: |
+          dnf builddep -y \
+            SPECS/socreate-logos.spec \
+            SPECS/socreate-release.spec \
+            SPECS/socreate-comps.spec \
+            SPECS/socreate-desktop.spec
 
       - name: Build socreate core packages
         run: |
@@ -72,20 +80,16 @@ jobs:
 
   kernel:
     name: kernel-rebrand
-    needs: socreate-release
     if: >-
-      needs.socreate-release.result == 'success' &&
-      (
-        github.event_name == 'push' ||
-        (github.event_name == 'workflow_dispatch' && inputs.build_kernel)
-      )
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_kernel)
     runs-on: ubuntu-latest
     timeout-minutes: 120
     container:
       image: fedora:44
     steps:
       - name: Install base tools
-        run: dnf install -y rpm-build rpmdevtools curl git
+        run: dnf install -y rpm-build rpmdevtools curl git dnf-plugins-core
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -128,9 +132,10 @@ jobs:
 
   mirror-upload:
     name: mirror-upload-package
-    needs: [socreate-release, kernel]
+    needs: [socreate-core, kernel]
     if: >-
-      needs.socreate-release.result == 'success' &&
+      always() &&
+      needs.socreate-core.result == 'success' &&
       needs.kernel.result == 'success' &&
       (
         github.event_name == 'push' ||
@@ -142,7 +147,7 @@ jobs:
       image: fedora:44
     steps:
       - name: Install packaging tools
-        run: dnf install -y rpm-build createrepo_c curl rsync
+        run: dnf install -y rpm-build createrepo_c curl rsync dnf-plugins-core
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -178,10 +183,10 @@ jobs:
 
   release:
     name: GitHub Release
-    needs: [socreate-release, kernel, mirror-upload]
+    needs: [socreate-core, kernel, mirror-upload]
     if: >-
       startsWith(github.ref, 'refs/tags/v') &&
-      needs.socreate-release.result == 'success' &&
+      needs.socreate-core.result == 'success' &&
       (needs.kernel.result == 'success' || needs.kernel.result == 'skipped') &&
       (needs.mirror-upload.result == 'success' || needs.mirror-upload.result == 'skipped')
     runs-on: ubuntu-latest
