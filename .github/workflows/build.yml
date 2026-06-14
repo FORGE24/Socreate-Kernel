@@ -73,6 +73,9 @@ jobs:
 
       - name: Stream fastfetch while builds run
         env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           MONITOR_JOB_NAME: monitor-fastfetch
         run: |
           chmod +x scripts/ci/gha-monitor-fastfetch.sh
@@ -104,6 +107,9 @@ jobs:
 
       - name: Stream resource snapshots while builds run
         env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           MONITOR_JOB_NAME: monitor-htop
           MONITOR_INTERVAL: '15'
         run: |
