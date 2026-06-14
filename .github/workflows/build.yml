@@ -7,19 +7,32 @@ on:
       - 'SPECS/**'
       - 'SOURCES/**'
       - 'scripts/**'
+      - 'kickstart/**'
       - '.github/workflows/**'
   pull_request:
     branches: [main, master]
   workflow_dispatch:
     inputs:
       build_kernel:
-        description: 'Also build kernel RPMs (baseonly, ~30-60m on GHA)'
+        description: 'Build kernel RPMs (~30-120m)'
+        type: boolean
+        default: true
+      build_anaconda:
+        description: 'Build patched Anaconda installer RPMs'
+        type: boolean
+        default: true
+      build_local_install:
+        description: 'Build local install tarball (kickstart + repo)'
         type: boolean
         default: true
       build_mirror_upload:
-        description: 'Build mirror upload tarball (overlay + Fedora seed RPMs)'
+        description: 'Build mirror upload tarball (overlay + seed RPMs)'
         type: boolean
         default: true
+      build_netinst_iso:
+        description: 'Build bootable netinst ISO (heavy, needs ~15G disk)'
+        type: boolean
+        default: false
       kernel_jobs:
         description: 'Parallel make jobs (empty = auto from CPU/RAM)'
         type: string
@@ -37,8 +50,73 @@ env:
   FEDORA_VERSION: ${{ github.event.inputs.fedora_version || '44' }}
   KERNEL_NEVR: ${{ github.event.inputs.kernel_nevr || '7.0.12-201.fc44' }}
   SOCREATE_DIST: .soc26h1q2
+  SOCREATE_RELEASEVER: 26H1Q2
+  NETINST_FALLBACK_URL: https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Server/x86_64/iso/Fedora-Server-netinst-x86_64-44-1.7.iso
 
 jobs:
+  monitor-fastfetch:
+    name: monitor-fastfetch
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      actions: read
+      contents: read
+    container:
+      image: fedora:44
+    steps:
+      - name: Install monitor tools
+        run: dnf install -y fastfetch curl python3
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stream fastfetch while builds run
+        env:
+          MONITOR_JOB_NAME: monitor-fastfetch
+        run: |
+          chmod +x scripts/ci/gha-monitor-fastfetch.sh
+          scripts/ci/gha-monitor-fastfetch.sh
+
+      - name: Upload fastfetch log
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-fastfetch-log
+          path: /tmp/gha-monitor-fastfetch.log
+          if-no-files-found: error
+
+  monitor-htop:
+    name: monitor-htop
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      actions: read
+      contents: read
+    container:
+      image: fedora:44
+    steps:
+      - name: Install monitor tools
+        run: dnf install -y htop procps-ng curl python3
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stream resource snapshots while builds run
+        env:
+          MONITOR_JOB_NAME: monitor-htop
+          MONITOR_INTERVAL: '15'
+        run: |
+          chmod +x scripts/ci/gha-monitor-htop.sh
+          scripts/ci/gha-monitor-htop.sh
+
+      - name: Upload htop log
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-htop-log
+          path: /tmp/gha-monitor-htop.log
+          if-no-files-found: error
+
   socreate-core:
     name: socreate-core
     runs-on: ubuntu-latest
@@ -130,6 +208,102 @@ jobs:
             RPMS/x86_64/kernel-devel-[0-9]*.rpm
           if-no-files-found: error
 
+  anaconda:
+    name: anaconda-build
+    needs: [socreate-core]
+    if: >-
+      needs.socreate-core.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.build_anaconda)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    container:
+      image: fedora:44
+    steps:
+      - name: Install build tools
+        run: dnf install -y rpm-build rpmdevtools curl git dnf-plugins-core cpio
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download socreate RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: socreate-release-rpms
+          path: RPMS/noarch/
+
+      - name: Build patched Anaconda
+        env:
+          FEDORA_VERSION: ${{ env.FEDORA_VERSION }}
+          SOCREATE_DIST: ${{ env.SOCREATE_DIST }}
+        run: |
+          chmod +x scripts/ci/build-anaconda.sh
+          ./scripts/ci/build-anaconda.sh
+
+      - name: Upload Anaconda RPMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: anaconda-rpms
+          path: |
+            RPMS/x86_64/anaconda-core-*.rpm
+            RPMS/x86_64/anaconda-gui-*.rpm
+            RPMS/x86_64/anaconda-tui-*.rpm
+            RPMS/x86_64/anaconda-widgets-*.rpm
+            RPMS/x86_64/anaconda-*.rpm
+            RPMS/noarch/anaconda-*.rpm
+          if-no-files-found: error
+
+  local-install:
+    name: local-install-tarball
+    needs: [socreate-core, kernel]
+    if: >-
+      always() &&
+      needs.socreate-core.result == 'success' &&
+      needs.kernel.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.build_local_install)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: fedora:44
+    steps:
+      - name: Install packaging tools
+        run: dnf install -y rpm-build createrepo_c curl dnf-plugins-core
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download socreate RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: socreate-release-rpms
+          path: RPMS/noarch/
+
+      - name: Download kernel RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-rpms
+          path: RPMS/x86_64/
+
+      - name: Build local install tarball
+        env:
+          BUILD_ISO: '0'
+          BUILD_ANACONDA: '0'
+        run: |
+          chmod +x scripts/ci/*.sh
+          ./scripts/ci/package-local-install.sh
+
+      - name: Upload local install tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: socreate-local-install
+          path: dist/socreate-*-local-install.tar.gz
+          if-no-files-found: error
+
   mirror-upload:
     name: mirror-upload-package
     needs: [socreate-core, kernel]
@@ -181,25 +355,86 @@ jobs:
           path: dist/socreate-*-mirror-upload.tar.gz
           if-no-files-found: error
 
+  netinst-iso:
+    name: netinst-iso
+    needs: [socreate-core, kernel, anaconda]
+    if: >-
+      always() &&
+      needs.socreate-core.result == 'success' &&
+      needs.kernel.result == 'success' &&
+      needs.anaconda.result == 'success' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.build_netinst_iso
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    container:
+      image: fedora:44
+    steps:
+      - name: Install ISO build tools
+        run: dnf install -y lorax pykickstart xorriso squashfs-tools rpm-build createrepo_c cpio
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download socreate RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: socreate-release-rpms
+          path: RPMS/noarch/
+
+      - name: Download kernel RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-rpms
+          path: RPMS/x86_64/
+
+      - name: Download Anaconda RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: anaconda-rpms
+          path: RPMS/x86_64/
+
+      - name: Download netinst base ISO
+        run: |
+          mkdir -p dist
+          curl -fL --retry 3 -o "dist/socreate-netinst-x86_64-${SOCREATE_RELEASEVER}-base.iso" \
+            "${NETINST_FALLBACK_URL}"
+
+      - name: Build netinst ISO
+        env:
+          BUILD_ISO: '1'
+          BUILD_ANACONDA: '0'
+          PATCH_INSTALL_IMG: '1'
+          NETINST_FALLBACK: dist/socreate-netinst-x86_64-${{ env.SOCREATE_RELEASEVER }}-base.iso
+        run: |
+          chmod +x scripts/ci/*.sh
+          ./scripts/ci/package-local-install.sh
+
+      - name: Upload netinst ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: socreate-netinst-iso
+          path: dist/socreate-*-netinst.iso
+          if-no-files-found: error
+
   release:
     name: GitHub Release
-    needs: [socreate-core, kernel, mirror-upload]
+    needs: [socreate-core, kernel, anaconda, local-install, mirror-upload, netinst-iso]
     if: >-
+      always() &&
       startsWith(github.ref, 'refs/tags/v') &&
-      needs.socreate-core.result == 'success' &&
-      (needs.kernel.result == 'success' || needs.kernel.result == 'skipped') &&
-      (needs.mirror-upload.result == 'success' || needs.mirror-upload.result == 'skipped')
+      needs.socreate-core.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download socreate-release RPMs
+      - name: Download socreate RPMs
         uses: actions/download-artifact@v4
         with:
           name: socreate-release-rpms
           path: dist/rpms/noarch/
 
-      - name: Download socreate-release SRPM
+      - name: Download socreate SRPMs
         uses: actions/download-artifact@v4
         with:
           name: socreate-release-srpm
@@ -212,6 +447,20 @@ jobs:
           name: kernel-rpms
           path: dist/rpms/x86_64/
 
+      - name: Download Anaconda RPMs
+        if: needs.anaconda.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: anaconda-rpms
+          path: dist/rpms/anaconda/
+
+      - name: Download local install tarball
+        if: needs.local-install.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: socreate-local-install
+          path: dist/
+
       - name: Download mirror upload package
         if: needs.mirror-upload.result == 'success'
         uses: actions/download-artifact@v4
@@ -219,12 +468,22 @@ jobs:
           name: socreate-mirror-upload
           path: dist/
 
+      - name: Download netinst ISO
+        if: needs.netinst-iso.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: socreate-netinst-iso
+          path: dist/iso/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/rpms/noarch/*.rpm
             dist/rpms/x86_64/*.rpm
+            dist/rpms/anaconda/*.rpm
             dist/srpms/*.src.rpm
+            dist/socreate-*-local-install.tar.gz
             dist/socreate-*-mirror-upload.tar.gz
+            dist/iso/socreate-*-netinst.iso
           generate_release_notes: true
