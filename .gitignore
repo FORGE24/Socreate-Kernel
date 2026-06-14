@@ -2,6 +2,8 @@ BUILD/
 BUILDROOT/
 RPMS/
 SRPMS/
+dist/
+work/
 *.log
 *.src.rpm
 linux-*.tar.*
@@ -35,3 +37,9 @@ SOURCES/mod-sign.*
 !SOURCES/LICENSE
 !SOURCES/socreate.repo
 !SOURCES/socreate-updates.repo
+!SOURCES/socreate-logos/
+SOURCES/kernel-abi-stablelists-*
+SOURCES/kernel-kabi-dw-*
+SOURCES/anaconda-*.tar.bz2
+SOURCES/anaconda-*.tar.gz
+!SOURCES/socreate-logos-1.3.tar.gz

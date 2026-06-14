@@ -16,6 +16,10 @@ on:
         description: 'Also build kernel RPMs (baseonly, ~30-60m on GHA)'
         type: boolean
         default: true
+      build_mirror_upload:
+        description: 'Build mirror upload tarball (overlay + Fedora seed RPMs)'
+        type: boolean
+        default: true
       kernel_jobs:
         description: 'Parallel make jobs (empty = auto from CPU/RAM)'
         type: string
@@ -36,7 +40,7 @@ env:
 
 jobs:
   socreate-release:
-    name: socreate-release
+    name: socreate-core
     runs-on: ubuntu-latest
     container:
       image: fedora:44
@@ -47,23 +51,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build socreate-release
+      - name: Build socreate core packages
         run: |
           chmod +x scripts/ci/build-release.sh
           ./scripts/ci/build-release.sh
 
-      - name: Upload socreate-release artifacts
+      - name: Upload socreate RPMs
         uses: actions/upload-artifact@v4
         with:
           name: socreate-release-rpms
           path: RPMS/noarch/
           if-no-files-found: error
 
-      - name: Upload socreate-release SRPM
+      - name: Upload socreate SRPMs
         uses: actions/upload-artifact@v4
         with:
           name: socreate-release-srpm
-          path: SRPMS/socreate-release-*.src.rpm
+          path: SRPMS/socreate-*.src.rpm
           if-no-files-found: error
 
   kernel:
@@ -114,15 +118,72 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kernel-rpms
+          path: |
+            RPMS/x86_64/kernel-[0-9]*.rpm
+            RPMS/x86_64/kernel-core-[0-9]*.rpm
+            RPMS/x86_64/kernel-modules-core-[0-9]*.rpm
+            RPMS/x86_64/kernel-modules-[0-9]*.rpm
+            RPMS/x86_64/kernel-devel-[0-9]*.rpm
+          if-no-files-found: error
+
+  mirror-upload:
+    name: mirror-upload-package
+    needs: [socreate-release, kernel]
+    if: >-
+      needs.socreate-release.result == 'success' &&
+      needs.kernel.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.build_mirror_upload)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    container:
+      image: fedora:44
+    steps:
+      - name: Install packaging tools
+        run: dnf install -y rpm-build createrepo_c curl rsync
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download socreate RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: socreate-release-rpms
+          path: RPMS/noarch/
+
+      - name: Download kernel RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-rpms
           path: RPMS/x86_64/
+
+      - name: Build mirror upload package
+        env:
+          SKIP_BUILD_RELEASE: '1'
+          SEED_DOWNLOAD_RETRIES: '3'
+        run: |
+          chmod +x scripts/ci/*.sh
+          ./scripts/ci/prepare-mirror-upload.sh
+          ls -lh dist/socreate-*-mirror-upload.tar.gz
+          VERIFY_ONLY=1 ./scripts/ci/sync-mirror-base-essentials.sh
+
+      - name: Upload mirror package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: socreate-mirror-upload
+          path: dist/socreate-*-mirror-upload.tar.gz
           if-no-files-found: error
 
   release:
     name: GitHub Release
-    needs: [socreate-release, kernel]
+    needs: [socreate-release, kernel, mirror-upload]
     if: >-
       startsWith(github.ref, 'refs/tags/v') &&
-      (needs.kernel.result == 'success' || needs.kernel.result == 'skipped')
+      needs.socreate-release.result == 'success' &&
+      (needs.kernel.result == 'success' || needs.kernel.result == 'skipped') &&
+      (needs.mirror-upload.result == 'success' || needs.mirror-upload.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -146,6 +207,13 @@ jobs:
           name: kernel-rpms
           path: dist/rpms/x86_64/
 
+      - name: Download mirror upload package
+        if: needs.mirror-upload.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: socreate-mirror-upload
+          path: dist/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -153,4 +221,5 @@ jobs:
             dist/rpms/noarch/*.rpm
             dist/rpms/x86_64/*.rpm
             dist/srpms/*.src.rpm
+            dist/socreate-*-mirror-upload.tar.gz
           generate_release_notes: true

@@ -1,0 +1,36 @@
+/* Socreate OS Anaconda workstation branding (GNOME / KDE) */
+:root {
+    --socreate-primary: #89d7b7;
+    --socreate-secondary: #1a312c;
+    --socreate-bg: #1a312c;
+    --socreate-text: #f8fafc;
+}
+
+#anaconda-header,
+#product-logo,
+.header {
+    background-color: var(--socreate-bg);
+}
+
+#product-logo {
+    content: url("sidebar-logo.png");
+}
+
+.sidebar {
+    background-image: url("sidebar-bg.png");
+}
+
+.topbar {
+    background-image: url("topbar-bg.png");
+}
+
+h1, h2, h3, .label {
+    color: var(--socreate-text);
+}
+
+button.primary,
+.btn-primary {
+    background-color: var(--socreate-primary);
+    border-color: var(--socreate-primary);
+    color: var(--socreate-secondary);
+}

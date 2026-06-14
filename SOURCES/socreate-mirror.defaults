@@ -1,0 +1,12 @@
+# Socreate OS mirror and build defaults (override via environment).
+SOCREATE_MIRROR_BASE=http://rope.sanrol-cloud.top
+SOCREATE_RELEASEVER=26H1Q2
+SOCREATE_REPO_ARCH=x86_64
+# Kickstart/anaconda API level (internal; not shown to users as "Fedora")
+SOCREATE_KS_API=44
+# Bootable netinst base ISO on Socreate mirror (used once, then patched locally)
+SOCREATE_NETINST_ISO=socreate-netinst-x86_64-${SOCREATE_RELEASEVER}-base.iso
+SOCREATE_NETINST_URL=${SOCREATE_MIRROR_BASE}/${SOCREATE_RELEASEVER}/iso/${SOCREATE_NETINST_ISO}
+# Kernel + Socreate branding overlay (URL-encoded path segment)
+SOCREATE_KERNEL_REPO_DIRNAME="socreate kernel repo"
+SOCREATE_KERNEL_REPO_URL="${SOCREATE_MIRROR_BASE}/${SOCREATE_RELEASEVER}/${SOCREATE_REPO_ARCH}/socreate%20kernel%20repo/"

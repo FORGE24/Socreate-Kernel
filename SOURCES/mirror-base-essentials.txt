@@ -1,0 +1,19 @@
+# Minimal packages required for Anaconda to resolve a server install.
+# Synced from Fedora Everything (platform API 44) into the Socreate main repo.
+bash
+coreutils
+glibc
+systemd
+dnf5
+rpm
+shadow-utils
+grub2-tools
+grub2-efi-x64
+NetworkManager
+openssh-server
+chrony
+sudo
+dracut
+selinux-policy-targeted
+policycoreutils
+audit

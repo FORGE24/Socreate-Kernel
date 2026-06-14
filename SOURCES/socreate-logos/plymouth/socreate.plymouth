@@ -1,0 +1,9 @@
+[Socreate OS]
+Name=Socreate OS
+Description=A Socreate OS boot splash theme.
+ModuleName=tribar
+
+[socreate]
+Name=Socreate OS
+Description=Socreate OS boot splash.
+ModuleName=tribar

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE comps PUBLIC "-//Red Hat, Inc.//DTD Comps info//EN" "comps.dtd">
+<comps>
+  <group>
+    <id>socreate-branding</id>
+    <name>Socreate OS Branding</name>
+    <description>Socreate OS release metadata, repositories, and visual identity.</description>
+    <default>true</default>
+    <uservisible>false</uservisible>
+    <packagelist>
+      <packagereq type="mandatory">socreate-release</packagereq>
+      <packagereq type="mandatory">socreate-repos</packagereq>
+      <packagereq type="mandatory">socreate-logos</packagereq>
+    </packagelist>
+  </group>
+
+  <group>
+    <id>socreate-gnome-identity</id>
+    <name>Socreate OS GNOME Identity</name>
+    <description>GNOME Workstation release identity and display manager defaults.</description>
+    <default>true</default>
+    <uservisible>false</uservisible>
+    <packagelist>
+      <packagereq type="mandatory">socreate-release-gnome</packagereq>
+      <packagereq type="mandatory">socreate-desktop-gnome</packagereq>
+    </packagelist>
+  </group>
+
+  <group>
+    <id>socreate-kde-identity</id>
+    <name>Socreate OS KDE Identity</name>
+    <description>KDE Plasma release identity and display manager defaults.</description>
+    <default>true</default>
+    <uservisible>false</uservisible>
+    <packagelist>
+      <packagereq type="mandatory">socreate-release-kde</packagereq>
+      <packagereq type="mandatory">socreate-desktop-kde</packagereq>
+    </packagelist>
+  </group>
+
+  <environment>
+    <id>socreate-gnome-desktop</id>
+    <name>Socreate OS GNOME Desktop</name>
+    <name xml:lang="zh_CN">Socreate OS GNOME 桌面</name>
+    <description>Socreate OS with the GNOME desktop environment for laptops and PCs.</description>
+    <description xml:lang="zh_CN">面向笔记本与 PC 的 Socreate OS GNOME 桌面环境。</description>
+    <display_order>10</display_order>
+    <grouplist>
+      <groupid>socreate-branding</groupid>
+      <groupid>socreate-gnome-identity</groupid>
+      <groupid>core</groupid>
+      <groupid>standard</groupid>
+      <groupid>base-x</groupid>
+      <groupid>fonts</groupid>
+      <groupid>hardware-support</groupid>
+      <groupid>guest-desktop-agents</groupid>
+      <groupid>printing</groupid>
+      <groupid>multimedia</groupid>
+      <groupid>networkmanager-submodules</groupid>
+      <groupid>input-methods</groupid>
+      <groupid>workstation-product</groupid>
+      <groupid>gnome-desktop</groupid>
+      <groupid>firefox</groupid>
+      <groupid>libreoffice</groupid>
+    </grouplist>
+    <optionlist>
+      <groupid>container-management</groupid>
+      <groupid>3d-printing</groupid>
+    </optionlist>
+  </environment>
+
+  <environment>
+    <id>socreate-kde-desktop</id>
+    <name>Socreate OS KDE Plasma Desktop</name>
+    <name xml:lang="zh_CN">Socreate OS KDE Plasma 桌面</name>
+    <description>Socreate OS with the KDE Plasma desktop environment.</description>
+    <description xml:lang="zh_CN">Socreate OS KDE Plasma 桌面环境。</description>
+    <display_order>20</display_order>
+    <grouplist>
+      <groupid>socreate-branding</groupid>
+      <groupid>socreate-kde-identity</groupid>
+      <groupid>core</groupid>
+      <groupid>standard</groupid>
+      <groupid>base-x</groupid>
+      <groupid>fonts</groupid>
+      <groupid>hardware-support</groupid>
+      <groupid>guest-desktop-agents</groupid>
+      <groupid>printing</groupid>
+      <groupid>multimedia</groupid>
+      <groupid>networkmanager-submodules</groupid>
+      <groupid>input-methods</groupid>
+      <groupid>kde-desktop</groupid>
+      <groupid>firefox</groupid>
+      <groupid>kde-apps</groupid>
+      <groupid>kde-media</groupid>
+      <groupid>libreoffice</groupid>
+    </grouplist>
+    <optionlist>
+      <groupid>kde-pim</groupid>
+      <groupid>container-management</groupid>
+    </optionlist>
+  </environment>
+
+  <group>
+    <id>socreate-gnome-addon</id>
+    <name>Socreate OS GNOME Desktop Add-on</name>
+    <name xml:lang="zh_CN">Socreate OS GNOME 桌面附加组件</name>
+    <description>Install GNOME on an existing Socreate OS system.</description>
+    <description xml:lang="zh_CN">在已有 Socreate OS 系统上安装 GNOME 桌面。</description>
+    <default>false</default>
+    <uservisible>true</uservisible>
+    <packagelist>
+      <packagereq type="mandatory">socreate-release-gnome</packagereq>
+      <packagereq type="mandatory">socreate-desktop-gnome</packagereq>
+    </packagelist>
+  </group>
+
+  <group>
+    <id>socreate-kde-addon</id>
+    <name>Socreate OS KDE Desktop Add-on</name>
+    <name xml:lang="zh_CN">Socreate OS KDE 桌面附加组件</name>
+    <description>Install KDE Plasma on an existing Socreate OS system.</description>
+    <description xml:lang="zh_CN">在已有 Socreate OS 系统上安装 KDE Plasma 桌面。</description>
+    <default>false</default>
+    <uservisible>true</uservisible>
+    <packagelist>
+      <packagereq type="mandatory">socreate-release-kde</packagereq>
+      <packagereq type="mandatory">socreate-desktop-kde</packagereq>
+    </packagelist>
+  </group>
+</comps>

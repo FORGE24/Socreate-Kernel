@@ -1,35 +1,61 @@
-# Temporary: Fedora packages via Tsinghua TUNA mirror until Socreate repos are ready.
+# Socreate OS official mirror (@SOCREATE_RELEASEVER@)
 [socreate]
-name=Socreate OS @FEDORA_VERSION@ - $basearch
-baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora/releases/@FEDORA_VERSION@/Everything/$basearch/os/
-#metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-@FEDORA_VERSION@&arch=$basearch
+name=Socreate OS @SOCREATE_RELEASEVER@ - $basearch
+baseurl=@SOCREATE_MIRROR_BASE@/@SOCREATE_RELEASEVER@/$basearch/
 enabled=1
 countme=1
 metadata_expire=7d
 repo_gpgcheck=0
 type=rpm
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-@FEDORA_VERSION@-$basearch
+gpgcheck=0
+skip_if_unavailable=False
+
+[socreate-appstream]
+name=Socreate OS @SOCREATE_RELEASEVER@ - AppStream
+baseurl=@SOCREATE_MIRROR_BASE@/@SOCREATE_RELEASEVER@/$basearch/appstream/
+enabled=1
+metadata_expire=7d
+repo_gpgcheck=0
+type=rpm
+gpgcheck=0
+skip_if_unavailable=False
+
+[socreate-custom-appstream]
+name=Socreate OS @SOCREATE_RELEASEVER@ - Custom AppStream
+baseurl=@SOCREATE_MIRROR_BASE@/@SOCREATE_RELEASEVER@/$basearch/socreate-appstream/
+enabled=1
+metadata_expire=7d
+repo_gpgcheck=0
+type=rpm
+gpgcheck=0
+skip_if_unavailable=False
+
+[socreate-kernel]
+name=Socreate OS @SOCREATE_RELEASEVER@ - Kernel
+baseurl=@SOCREATE_MIRROR_BASE@/@SOCREATE_RELEASEVER@/$basearch/socreate%20kernel%20repo/
+enabled=1
+metadata_expire=7d
+repo_gpgcheck=0
+type=rpm
+gpgcheck=0
 skip_if_unavailable=False
 
 [socreate-debuginfo]
-name=Socreate OS @FEDORA_VERSION@ - $basearch - Debug
-baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora/releases/@FEDORA_VERSION@/Everything/$basearch/debug/tree/
+name=Socreate OS @SOCREATE_RELEASEVER@ - $basearch - Debug
+baseurl=@SOCREATE_MIRROR_BASE@/@SOCREATE_RELEASEVER@/$basearch/debug/
 enabled=0
 metadata_expire=7d
 repo_gpgcheck=0
 type=rpm
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-@FEDORA_VERSION@-$basearch
+gpgcheck=0
 skip_if_unavailable=False
 
 [socreate-source]
-name=Socreate OS @FEDORA_VERSION@ - Source
-baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora/releases/@FEDORA_VERSION@/Everything/source/tree/
+name=Socreate OS @SOCREATE_RELEASEVER@ - Source
+baseurl=@SOCREATE_MIRROR_BASE@/@SOCREATE_RELEASEVER@/source/
 enabled=0
 metadata_expire=7d
 repo_gpgcheck=0
 type=rpm
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-@FEDORA_VERSION@-$basearch
+gpgcheck=0
 skip_if_unavailable=False

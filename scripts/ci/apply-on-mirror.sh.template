@@ -1,0 +1,54 @@
+#!/usr/bin/bash
+# Run on the rope mirror host after uploading dist/mirror-upload/<releasever>/.
+set -euo pipefail
+
+RELEASEVER="${SOCREATE_RELEASEVER:-26H1Q2}"
+ARCH="${SOCREATE_REPO_ARCH:-x86_64}"
+KERNEL_DIRNAME="${SOCREATE_KERNEL_REPO_DIRNAME:-socreate kernel repo}"
+COMPS_FILE="${COMPS_FILE:-socreate-comps.xml}"
+
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <mirror-docroot> [upload-tree-dir]" >&2
+    echo "  Example: $0 /var/www/html /tmp/26H1Q2" >&2
+    exit 1
+fi
+
+MIRROR_ROOT="$1"
+UPLOAD_TREE="${2:-$(cd "$(dirname "$0")" && pwd)}"
+TARGET="${MIRROR_ROOT%/}/${RELEASEVER}/${ARCH}"
+KERNEL_TARGET="${TARGET}/${KERNEL_DIRNAME}"
+UPLOAD_ARCH="${UPLOAD_TREE}/${ARCH}"
+
+if [[ ! -d "$UPLOAD_ARCH" ]]; then
+    echo "Upload tree not found: $UPLOAD_ARCH" >&2
+    exit 1
+fi
+
+echo "==> Mirror target: $TARGET"
+mkdir -p "$TARGET" "$KERNEL_TARGET"
+
+if [[ -d "${UPLOAD_ARCH}/${KERNEL_DIRNAME}" ]]; then
+    echo "==> Deploy kernel repo"
+    rsync -a --delete "${UPLOAD_ARCH}/${KERNEL_DIRNAME}/" "${KERNEL_TARGET}/"
+fi
+
+if [[ -d "${UPLOAD_ARCH}/overlay" ]]; then
+    echo "==> Merge Socreate overlay RPMs"
+    find "${UPLOAD_ARCH}/overlay" -maxdepth 1 -name '*.rpm' -exec cp -f {} "$TARGET/" \;
+fi
+
+if [[ -d "${UPLOAD_ARCH}/base-essentials" ]]; then
+    echo "==> Merge base-essential RPMs"
+    find "${UPLOAD_ARCH}/base-essentials" -maxdepth 1 -name '*.rpm' -exec cp -f {} "$TARGET/" \;
+fi
+
+COMPS_ARG=()
+if [[ -f "${UPLOAD_TREE}/${COMPS_FILE}" ]]; then
+    COMPS_ARG=(--groupfile "${UPLOAD_TREE}/${COMPS_FILE}")
+fi
+
+echo "==> Update main repo metadata"
+createrepo_c --update "${COMPS_ARG[@]}" "$TARGET"
+
+echo "==> Done"
+echo "Verify: bash scripts/ci/audit-mirror.sh"

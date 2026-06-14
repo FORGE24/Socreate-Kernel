@@ -9,7 +9,31 @@
 
 内核 spec 是单体 `rpmbuild`，**无法拆成 4 个独立编译 job**；加速靠：
 - **`-j16`** 并行 make（16 核机器）
-- **`--with baseonly`** 跳过 debug 变体（`KERNEL_BASEONLY=1`）
+- **默认 split 构建**（`KERNEL_BASEONLY=0`）：产出 `kernel-core`、`kernel-modules`、`kernel-devel`
+- **`KERNEL_BASEONLY=1`** 时跳过 headers，仅适合快速冒烟
+
+## 方式 A0：导入 CL 已编译产物（最快）
+
+若 K8s/CL 已产出 `kernel-rpms.zip`，可直接解包为拆分 RPM：
+
+```bash
+# 默认读取共享文件夹 /mnt/hgfs/share/kernel-rpms.zip
+./scripts/ci/import-kernel-rpms.sh
+
+# 或指定 zip / 目录
+KERNEL_IMPORT_ZIP=/path/to/kernel-rpms.zip ./scripts/ci/import-kernel-rpms.sh
+KERNEL_IMPORT_DIR=/path/to/rpms ./scripts/ci/import-kernel-rpms.sh
+
+# 通过 build-kernel.sh 跳过本地编译
+KERNEL_IMPORT_ZIP=/mnt/hgfs/share/kernel-rpms.zip ./scripts/ci/build-kernel.sh
+```
+
+导入产物：
+- `kernel-core`
+- `kernel-modules-core`（`kernel-modules` 依赖）
+- `kernel-modules`
+- `kernel-devel`
+- `kernel`（元包）
 
 ## 方式 A：临时 K8s Job（推荐）
 

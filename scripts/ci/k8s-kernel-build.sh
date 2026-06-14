@@ -15,7 +15,7 @@ FEDORA_VERSION="${FEDORA_VERSION:-44}"
 KERNEL_NEVR="${KERNEL_NEVR:-7.0.12-201.fc44}"
 SOCREATE_DIST="${SOCREATE_DIST:-.soc26h1q2}"
 JOBS="${JOBS:-16}"
-KERNEL_BASEONLY="${KERNEL_BASEONLY:-1}"
+KERNEL_BASEONLY="${KERNEL_BASEONLY:-0}"
 
 if [[ -z "${KUBECONFIG:-}" ]]; then
     echo "KUBECONFIG is not set"
@@ -41,8 +41,12 @@ POD="$(kubectl -n "${NAMESPACE}" get pods -l job-name="${JOB_NAME}" -o jsonpath=
 echo "==> Build pod: ${POD}"
 
 mkdir -p "${ARTIFACT_DIR}"
-echo "==> Copy RPM artifacts to ${ARTIFACT_DIR}"
-kubectl -n "${NAMESPACE}" cp "${POD}:/build/RPMS/x86_64/." "${ARTIFACT_DIR}/"
+tmpdir="$(mktemp -d)"
+echo "==> Copy kernel RPM artifacts to ${ARTIFACT_DIR}"
+kubectl -n "${NAMESPACE}" cp "${POD}:/build/RPMS/x86_64/." "${tmpdir}/"
+chmod +x "${TOPDIR}/scripts/ci/import-kernel-rpms.sh"
+KERNEL_IMPORT_DIR="${tmpdir}" ARTIFACT_DIR="${ARTIFACT_DIR}" "${TOPDIR}/scripts/ci/import-kernel-rpms.sh"
+rm -rf "${tmpdir}"
 
 echo "==> Kernel RPMs:"
 ls -lh "${ARTIFACT_DIR}/"*.rpm 2>/dev/null || ls -lh "${ARTIFACT_DIR}/"

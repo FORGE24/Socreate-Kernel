@@ -13,7 +13,7 @@
 %define release_quarter_lc q2
 %define releasever %{release_year}%{release_half}%{release_quarter}
 
-%define socreate_rel 7
+%define socreate_rel 12
 %define rpm_license BSD-3-Clause
 %define dist .soc%{release_year}%{release_half_lc}%{release_quarter_lc}
 %define home_url https://socreate.xyz/
@@ -24,7 +24,7 @@
 %define os_id socreate
 %define os_bug_name Socreate-OS-%{releasever}
 %define support_end 2027-06-30
-%define fedora_base 44
+%define platform_api 44
 
 # Kernel versioning: {version}-{release}.soc{YY}{h}{q}
 %define kernel_version 7.0.12
@@ -44,13 +44,26 @@ BuildArch:      noarch
 
 Provides:       socreate-release = %{version}-%{release}
 Provides:       socreate-release(upstream) = %{full_release_version}
-Provides:       redhat-release = %{fedora_base}-999
+Provides:       redhat-release = %{platform_api}-999
 Provides:       system-release = %{version}-%{release}
 Provides:       system-release(releasever) = %{releasever}
-Provides:       system-release(%{fedora_base}) = %{fedora_base}
-Provides:       fedora-release = %{fedora_base}-999
+Provides:       system-release(%{platform_api}) = %{platform_api}
+# RPM dependency aliases (no Fedora packages installed)
+Provides:       fedora-release = %{platform_api}-999
+Obsoletes:      fedora-release < %{platform_api}-999
+Obsoletes:      fedora-release-server < %{platform_api}-999
+Obsoletes:      fedora-release-common < %{platform_api}-999
+Obsoletes:      fedora-release-identity-server < %{platform_api}-999
+Obsoletes:      fedora-repos < %{platform_api}-999
+Obsoletes:      fedora-logos < 999
+Obsoletes:      fedoraproject-logos < 999
+Obsoletes:      generic-logos < 999
+Conflicts:      fedora-release
+Conflicts:      fedora-logos
+Conflicts:      fedoraproject-logos
 
 Requires:        socreate-repos(%{releasever})
+Requires:        socreate-logos
 
 Source0:        LICENSE
 Source1:        socreate.repo
@@ -85,13 +98,13 @@ NAME="Socreate OS"
 VERSION="%{full_release_version} (%{distro_code})"
 RELEASE_TYPE=stable
 ID=socreate
-ID_LIKE="fedora rhel centos"
+ID_LIKE="rhel centos"
 VERSION_ID="%{full_release_version}"
 VERSION_CODENAME="%{distro_code}"
 PLATFORM_ID="platform:soc%{release_year}"
 PRETTY_NAME="Socreate OS %{full_release_version} (%{distro_code}) Server Edition"
-ANSI_COLOR="0;38;2;99;102;241"
-LOGO=fedora-logo-icon
+ANSI_COLOR="0;38;2;26;49;44"
+LOGO=socreate-logo-icon
 CPE_NAME="cpe:/o:socreate:socreate:%{releasever}::baseos"
 HOME_URL="%{home_url}"
 DOCUMENTATION_URL="%{doc_url}"
@@ -104,7 +117,7 @@ REDHAT_SUPPORT_PRODUCT_VERSION=%{full_release_version}
 SUPPORT_END=%{support_end}
 VARIANT="Server Edition"
 VARIANT_ID=server
-FEDORA_VERSION=%{fedora_base}
+SOCREATE_PLATFORM_API=%{platform_api}
 SOCREATE_RELEASE_YEAR=%{release_year}
 SOCREATE_RELEASE_HALF=%{release_half}
 SOCREATE_RELEASE_QUARTER=%{release_quarter}
@@ -159,14 +172,21 @@ cat > %{buildroot}%{_prefix}/lib/rpm/macros.d/macros.dist << EOF
 %%dist_purl_namespace socreate
 %%dist_home_url       %{home_url}
 %%dist_bug_report_url %{bug_url}
-%%fedora              %{fedora_base}
-%%fc%{fedora_base}    1
+%%socreate_platform_api %{platform_api}
+%%socreate_fc%{platform_api} 1
 EOF
 
 # repository definitions (owned by socreate-repos subpackage)
 install -d -m 0755 %{buildroot}%{_sysconfdir}/yum.repos.d
-sed 's/@FEDORA_VERSION@/%{fedora_base}/g' %{_sourcedir}/socreate.repo > %{buildroot}%{_sysconfdir}/yum.repos.d/socreate.repo
-sed 's/@FEDORA_VERSION@/%{fedora_base}/g' %{_sourcedir}/socreate-updates.repo > %{buildroot}%{_sysconfdir}/yum.repos.d/socreate-updates.repo
+for repo in socreate.repo socreate-updates.repo; do
+    sed \
+        -e 's/@SOCREATE_RELEASEVER@/%{releasever}/g' \
+        -e 's|@SOCREATE_MIRROR_BASE@|http://rope.sanrol-cloud.top|g' \
+        %{_sourcedir}/$repo > %{buildroot}%{_sysconfdir}/yum.repos.d/$repo
+done
+
+# Remove any legacy third-party repo drop-ins from the build root
+rm -f %{buildroot}%{_sysconfdir}/yum.repos.d/fedora*.repo
 
 # license (main package)
 install -d -m 0755 %{buildroot}%{_datadir}/licenses/socreate-release
@@ -195,15 +215,40 @@ install -m 0644 %{_sourcedir}/LICENSE %{buildroot}%{_datadir}/licenses/socreate-
 %config(noreplace) %{_sysconfdir}/yum.repos.d/socreate-updates.repo
 
 %post -n socreate-repos
-# Socreate releasever (26H1Q2) != Fedora repo path (44); disable broken legacy repos.
-for repo in fedora updates fedora-cisco-openh264 fedora-updates-testing; do
-    dnf config-manager disable "$repo" >/dev/null 2>&1 || true
+# Enable only Socreate repositories; disable everything else.
+shopt -s nullglob
+for repofile in /etc/yum.repos.d/*.repo; do
+    case "$(basename "$repofile")" in
+        socreate.repo|socreate-updates.repo) continue ;;
+    esac
+    rm -f "$repofile"
+done
+for repo in $(grep -h '^\[' /etc/yum.repos.d/socreate*.repo 2>/dev/null | tr -d '[]'); do
+    dnf config-manager --set-enabled "$repo" >/dev/null 2>&1 || true
+done
+for repo in $(grep -h '^\[' /etc/yum.repos.d/socreate-updates*.repo 2>/dev/null | tr -d '[]'); do
+    dnf config-manager --set-enabled "$repo" >/dev/null 2>&1 || true
 done
 
 %postun -n socreate-repos
-# Do not re-enable legacy fedora repos on uninstall.
+# Do not re-enable legacy repos on uninstall.
 
 %changelog
+* Sat Jun 14 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-12
+- Add socreate-kernel repo pointing to kernel overlay on official mirror
+
+* Sat Jun 14 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-11
+- Remove Fedora branding: os-release, repos, Obsoletes/Conflicts for fedora-* packages
+
+* Sat Jun 14 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-10
+- Point repos to Socreate official mirror (rope.sanrol-cloud.top)
+
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-9
+- Update ANSI_COLOR to match official Socreate brand palette
+
+* Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-8
+- Require socreate-logos and use socreate-logo-icon in os-release
+
 * Sat Jun 13 2026 Socreate OS Project <release@socreate.xyz> - 26H1Q2-7
 - Fix CI build: use %%{_sourcedir} and correct changelog weekday
 

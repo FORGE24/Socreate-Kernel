@@ -1,0 +1,9 @@
+[Main]
+Product=Socreate OS
+Version=26H1Q2
+BugURL=https://bugs.socreate.xyz/
+IsFinal=True
+Variant=Server
+
+[Compose]
+Lorax=Socreate OS 26H1Q2

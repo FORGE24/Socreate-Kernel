@@ -1,0 +1,33 @@
+@define-color socreate #1a312c;
+@define-color socreate-accent #89d7b7;
+
+.logo-sidebar {
+    background-image: url('/usr/share/anaconda/pixmaps/server/sidebar-bg.png');
+    background-color: @socreate;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.logo {
+    background-image: url('/usr/share/anaconda/pixmaps/server/sidebar-logo.png');
+    background-position: 50% 20px;
+    background-repeat: no-repeat;
+    background-color: transparent;
+}
+
+.product-logo {
+    background-image: none;
+    background-color: transparent;
+}
+
+AnacondaSpokeWindow #nav-box {
+    background-color: @socreate;
+    background-image: url('/usr/share/anaconda/pixmaps/server/topbar-bg.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: white;
+}
+
+AnacondaSpokeWindow #nav-box GtkButton {
+    box-shadow: none;
+}
